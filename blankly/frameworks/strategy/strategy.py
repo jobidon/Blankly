@@ -157,14 +157,26 @@ class Strategy(StrategyBase):
         # Append each of the events the class defines into the backtest
         for i in self._schedulers:
             kwargs = i.get_kwargs()
-            self.backtesting_controller.append_backtest_price_event(callback=kwargs['callback'],
-                                                                    asset_id=kwargs['symbol'],
-                                                                    time_interval=i.get_interval(),
-                                                                    state_object=kwargs['state_object'],
-                                                                    ohlc=kwargs['ohlc'],
-                                                                    init=kwargs['init'],
-                                                                    teardown=kwargs['teardown']
-                                                                    )
+            success=False
+            while not success:
+                try:
+                    self.backtesting_controller.append_backtest_price_event(callback=kwargs['callback'],
+                                                                            asset_id=kwargs['symbol'],
+                                                                            time_interval=i.get_interval(),
+                                                                            state_object=kwargs['state_object'],
+                                                                            ohlc=kwargs['ohlc'],
+                                                                            init=kwargs['init'],
+                                                                            teardown=kwargs['teardown']
+                                                                            )
+                    success = True
+                except Exception as e:
+                    if e.args[0].find('429')==0:
+                        wait = 10#retries * 10
+                        print('Error fetching prices: [%s] Waiting %s secs before retrying...' % (e, wait))
+                        time.sleep(wait)
+                        #retries += 1
+                    else:
+                        print('Error fetching prices: [%s]' % (e))
 
         # Run the backtest & return results
         results = self.backtesting_controller.run()
