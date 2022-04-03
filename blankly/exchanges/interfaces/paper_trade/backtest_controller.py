@@ -348,10 +348,22 @@ class BackTestController:
             for j in negative_ranges:
                 print("No cached data found for " + asset + " from: " + str(j[0]) + " to " +
                       str(j[1]) + " at a resolution of " + str(resolution) + " seconds.")
-                download = self.interface.get_product_history(asset,
-                                                              j[0],
-                                                              j[1],
-                                                              resolution)
+                success=False
+                while not success:
+                    try:
+                        download = self.interface.get_product_history(asset,
+                                                                    j[0],
+                                                                    j[1],
+                                                                    resolution)
+                        success = True
+                    except Exception as e:
+                        if e.args[0].find('429')==0:
+                            wait = 10#retries * 10
+                            print('Error fetching prices: [%s] Waiting %s secs before retrying...' % (e, wait))
+                            time.sleep(wait)
+                            #retries += 1
+                        else:
+                            print('Error fetching prices: [%s]' % (e))
 
                 # Write the file but this time include very accurately the start and end times
                 if self.preferences['settings']['continuous_caching']:
@@ -764,6 +776,7 @@ class BackTestController:
                     try:
                         if self.price_events[0]['ohlc']:
                             # This pulls all the price data out of the price array defined on line 260
+                          if self.price_events[0]['asset_id'] in ohlcv_tracker:
                             ohlcv_array = ohlcv_tracker[self.price_events[0]['asset_id']]
                             self.price_events[0]['function']({'open': ohlcv_array[3],
                                                               'high': ohlcv_array[4],
